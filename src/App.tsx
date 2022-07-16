@@ -8,6 +8,7 @@ import {Button} from "./Button";
 import {ListItem} from "./ListItem";
 import {Image} from "./Image";
 import {Alert, Snackbar} from "@mui/material";
+import {Span} from "./Span";
 
 
 const StyledConvoke = styled('img',{
@@ -298,7 +299,7 @@ export const App = () => {
                 setCelestialAlignment(true);
                 setPlayerTotalMana(0);
                 setPlayerFullMana(0);
-                setOpponentsMana( 0);
+                setOpponentsMana(0);
             }
         },
         {
@@ -364,7 +365,7 @@ export const App = () => {
                 let addedTaunts = 0;
 
                 if(Math.random() > .5){
-                    setPlayerBoardState([...playerBoardState, {attack: 6, health: 6, modifiers: ['taunt']}])
+                    setPlayerBoardState(playerBoardState => [...playerBoardState, {attack: 6, health: 6, modifiers: ['taunt']}])
                     statsDifferential.attack = 6;
                     statsDifferential.health = 6;
                     addedTaunts = 1;
@@ -465,7 +466,7 @@ export const App = () => {
             neededMana = 1;
         }
         if(playerFullMana >= neededMana){
-            setPlayerFullMana(playerFullMana - neededMana);
+            setPlayerFullMana(playerFullMana => playerFullMana - neededMana);
         } else {
             setIsNotEnoughManaPopupVisible(true);
             return;
@@ -705,7 +706,7 @@ export const App = () => {
                   <h2>Stats</h2>
               </Div>
               <ul>
-                  {buffedMinionsInHand != null && <ListItem>Buffed all minions in hand by +{buffedMinionsInHand.attack || 0}/+{buffedMinionsInHand.health || 0}</ListItem>}
+                  {buffedMinionsInHand.attack != null || buffedMinionsInHand.health != null && <ListItem>Buffed all minions in hand by +{buffedMinionsInHand.attack || 0}/+{buffedMinionsInHand.health || 0}</ListItem>}
                   {armorGain > 0 && <ListItem>Gained +{armorGain} armor</ListItem>}
 
                   {addedFriendlyTaunts > 0 && <ListItem>Gained {addedFriendlyTaunts} taunt(s) on the board</ListItem>}
@@ -721,19 +722,19 @@ export const App = () => {
                   {attackGain > 0 && <ListItem>Your hero gained +{attackGain} attack</ListItem>}
 
                   {friendlyMinionDifferential > 0 && <ListItem>You gained {friendlyMinionDifferential} minion(s)</ListItem>}
-                  {friendlyMinionDifferential < 0 && <ListItem>You lost {friendlyMinionDifferential * -1} minion(s)</ListItem>}
+                  {friendlyMinionDifferential < 0 && <ListItem css={{color: 'red'}}>You lost {friendlyMinionDifferential * -1} minion(s)</ListItem>}
 
-                  {friendlyStatsDifferential != null &&
-                    <ListItem>Your net stats change is {(friendlyStatsDifferential.attack || 0) >= 0 && '+'}{friendlyStatsDifferential.attack || 0}/
-                        {(friendlyStatsDifferential.health || 0) >= 0 && '+'}{friendlyStatsDifferential.health || 0}
+                  {friendlyStatsDifferential.attack != null || friendlyStatsDifferential.health != null  &&
+                    <ListItem>Your net stats change is <Span css={{ fontWeight: 'bold', color: (friendlyStatsDifferential.attack || 0) > 0 ? 'green':'red'}}>{(friendlyStatsDifferential.attack || 0) >= 0 && '+'}{friendlyStatsDifferential.attack || 0}</Span>/
+                      <Span css={{ fontWeight: 'bold', color: (friendlyStatsDifferential.health || 0) > 0 ? 'green':'red'}}>{(friendlyStatsDifferential.health || 0) >= 0 && '+'}{friendlyStatsDifferential.health || 0}</Span>
                     </ListItem>
                   }
 
                   {enemyMinionDifferential < 0 && <ListItem>Your opponent lost {enemyMinionDifferential * -1} minion(s)</ListItem>}
                   {enemyMinionDifferential > 0 && <ListItem>Your opponent gained {enemyMinionDifferential} minion(s)</ListItem>}
-                  {enemyStatsDifferential != null &&
-                      <ListItem>Your opponent's net stats change is {(enemyStatsDifferential.attack || 0) >= 0 && '+'}{enemyStatsDifferential.attack || 0 }/
-                          {(enemyStatsDifferential.health || 0) >= 0 && '+'}{enemyStatsDifferential.health || 0}
+                  {enemyStatsDifferential.attack != null || enemyStatsDifferential.health != null &&
+                      <ListItem>Your opponent's net stats change is <Span css={{ fontWeight: 'bold', color: (enemyStatsDifferential.attack || 0) > 0 ? 'red':'green'}}>{(enemyStatsDifferential.attack || 0) >= 0 && '+'}{enemyStatsDifferential.attack || 0 }</Span>/
+                        <Span css={{ fontWeight: 'bold', color: (enemyStatsDifferential.health || 0) > 0 ? 'red':'green'}}>{(enemyStatsDifferential.health || 0) >= 0 && '+'}{enemyStatsDifferential.health || 0}</Span>
                       </ListItem>
                   }
                   {celestialAlignment && <ListItem>Celestial Alignment has been activated</ListItem>}

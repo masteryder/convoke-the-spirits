@@ -914,6 +914,7 @@ export const App = () => {
         setPlayersAttack(0);
         setPlayerTotalMana(10);
         setPlayerFullMana(10);
+        setOpponentsMana(10);
         setCelestialAlignment(false);
         setFrostwolfKennels(false);
         setPlayedCards([]);

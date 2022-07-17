@@ -1,4 +1,4 @@
-import {styled} from "@stitches/react";
+import {styled} from "./Stitches";
 
 export const Span = styled('span', {});
 

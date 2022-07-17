@@ -1,8 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import './App.css';
-import {
-    styled
-} from '@stitches/react';
+
 import {Div} from "./Div";
 import {Button} from "./Button";
 import {ListItem} from "./ListItem";
@@ -20,6 +18,7 @@ import PetsIcon from '@mui/icons-material/Pets';
 import PanToolIcon from '@mui/icons-material/PanTool';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import {pink} from "@mui/material/colors";
+import {styled} from "./Stitches";
 
 
 const StyledConvoke = styled('img',{
@@ -27,6 +26,7 @@ const StyledConvoke = styled('img',{
     height: 'auto',
     cursor: 'pointer',
     transition: 'all .3s',
+    marginBottom: '1rem',
     '&:hover':{
        transform: 'scale(1.1)',
     }
@@ -118,7 +118,7 @@ const StyledHeroAttack = styled(StyledStatInput,{
 const StyledHeroHandSizeWrapper = styled('div',{
     position: 'absolute',
     fontSize: '20px',
-    right: '-200px',
+    right: '-180px',
     top: '50%',
     transform: 'translateY(-50%)',
 });
@@ -1039,20 +1039,46 @@ export const App = () => {
 
   return  (
     <>
-        <Div css={{display: 'flex' }}>
+        <Div css={{
+            display: 'flex',
+            flexDirection: 'column',
+            '@bp1':{
+                flexDirection: 'row'
+            } }}>
           {/* Played cards */}
-          <Div css={{flex:1, padding: '1rem'}}>
-              <h2>Played cards</h2>
-              <Div>
-                  {(playedCards.current||[]).map((card: Card, index:number)=>{
-                      return (
-                      <Div css={{display: 'flex', alignItems: 'center', marginBottom: '.2rem'}}>{index+1}
-                        <Image css={{width:'36px', height: 'auto'}} src={require(`./assets/${card.filename}.png`)}/>
-                          {card.name}
-                      </Div>)
-                  })}
-              </Div>
-          </Div>
+            <Div>
+                <Div css={{fontWeight: 'bold', fontSize: '24px'}}>Played cards</Div>
+
+                <Div css={{
+                      flex:1,
+                      padding: '1rem',
+                      maxHeight: '15vh',
+                      overflow: 'auto',
+                      '@bp1':{
+                          maxHeight: 'unset',
+                      }
+                    }}>
+                  <Div css={{display: 'flex',
+                      flexDirection: 'row',
+                      gap: '.5rem',
+                      '@bp1':{
+                          flexDirection: 'column'
+                      }}}>
+                      {(playedCards.current||[]).map((card: Card, index:number)=>{
+                          return (
+                          <Div css={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              marginBottom: '.2rem',
+                              whiteSpace: 'nowrap'
+                          }}>{index+1}
+                            <Image css={{width:'36px', height: 'auto'}} src={require(`./assets/${card.filename}.png`)}/>
+                              {card.name}
+                          </Div>)
+                      })}
+                  </Div>
+                </Div>
+            </Div>
           {/* Board */}
           <Div css={{display: 'flex', flexDirection: 'column', flex: 3, padding: '1rem'}}>
             {/* Opponent's hero */}
@@ -1187,56 +1213,62 @@ export const App = () => {
 
               </Div>
           </Div>
-          {/* Stats */}
-          <Div css={{flex:1, padding: '1rem'}}>
-              <Div css={{display: 'flex', justifyContent: 'center'}}>
-                  <h2>Stats</h2>
+          {/* Stats */}<Div>
+            <Div css={{display: 'flex', justifyContent: 'center'}}>
+                <Div css={{fontWeight: 'bold', fontSize: '24px'}}>Stats</Div>
+            </Div>
+              <Div css={{
+                  flex:1,
+                  padding: '1rem',
+                  '@bp1':{
+                      height: '100%'
+                  }}}>
+                  {consecutiveClicks > 1 && <Div>After {consecutiveClicks} consecutive "Convoke the Spirits": </Div>}
+                  <ul>
+                      {(armorGain.current||0) > 0 && <ListItem><ShieldIcon fontSize="small"/> Gained +{(armorGain.current||0)} armor</ListItem>}
+
+                      {(damageToEnemyHero.current || 0) > 0 && <ListItem><Span css={{color: 'green'}}>Dealt {(damageToEnemyHero.current||0)} damage to the enemy hero</Span></ListItem>}
+                      {(damageToFriendlyHero.current || 0) > 0 && <ListItem><Span css={{color: 'red'}}>Dealt {(damageToFriendlyHero.current||0)} damage to your own hero</Span></ListItem>}
+
+                      {(cardsDrawn.current||0) > 0 && <ListItem><StyleIcon fontSize={'small'}/>Drew +{(cardsDrawn.current||0)} cards</ListItem>}
+                      {(cardsBurnt.current||0) > 0 && <ListItem><LocalFireDepartmentIcon fontSize={'small'}/><Span css={{color: 'red'}}>Burnt {(cardsBurnt.current||0)} cards</Span></ListItem>}
+
+
+                      {(attackGain.current||0) > 0 && <ListItem><FitnessCenterIcon fontSize={'small'}/>Your hero gained +{(attackGain.current||0)} attack</ListItem>}
+
+                      {(gainedUsableMana.current || 0) > 0 && <ListItem><DiamondOutlinedIcon fontSize={'small'}/>Gained +{(gainedUsableMana.current||0)} mana usable this turn</ListItem>}
+                      {(gainedPermanentMana.current||0) > 0 && <ListItem><DiamondIcon fontSize={'small'}/>Gained +{(gainedPermanentMana.current||0)} permanent mana</ListItem>}
+
+                      {(friendlyMinionDifferential.current||0) > 0 && <ListItem>Gained {(friendlyMinionDifferential.current||0)} minion(s) {(addedFriendlyTaunts.current||0) > 0 && `(${addedFriendlyTaunts.current||0} taunt(s))`}</ListItem>}
+                      {(friendlyMinionDifferential.current||0) < 0 && <ListItem><Span css={{color: 'red'}}>You lost {(friendlyMinionDifferential.current||0) * -1} minion(s)</Span></ListItem>}
+                      {(summonedMinionsFromDeck.current||0) > 0 && <ListItem>Summoned {(summonedMinionsFromDeck.current||0)} minion(s) from deck</ListItem>}
+                      {(castSpellsFromDeck.current||0) > 0 && <ListItem>Cast {(castSpellsFromDeck.current||0)} spell(s) from deck</ListItem>}
+
+                      {((friendlyStatsDifferential.current||{}).attack != null || (friendlyStatsDifferential.current||{}).health != null)  &&
+                        <ListItem>Your net stats change is <Span css={{ fontWeight: 'bold', color: ((friendlyStatsDifferential.current||{}).attack || 0) > 0 ? 'green':'red'}}>{((friendlyStatsDifferential.current||{}).attack || 0) >= 0 && '+'}{(friendlyStatsDifferential.current||{}).attack || 0}</Span>/
+                          <Span css={{ fontWeight: 'bold', color: ((friendlyStatsDifferential.current||{}).health || 0) > 0 ? 'green':'red'}}>{((friendlyStatsDifferential.current||{}).health || 0) >= 0 && '+'}{(friendlyStatsDifferential.current||{}).health || 0}</Span>
+                        </ListItem>
+                      }
+
+                      {(enemyMinionDifferential.current||0) < 0 && <ListItem><Span css={{color: 'green'}}>Your opponent lost {(enemyMinionDifferential.current||0) * -1} minion(s)</Span></ListItem>}
+                      {(enemyMinionDifferential.current||0) > 0 && <ListItem>Your opponent gained {(enemyMinionDifferential.current||0)} minion(s)</ListItem>}
+                      {((enemyStatsDifferential.current||{}).attack != null || (enemyStatsDifferential.current||{}).health != null) &&
+                          <ListItem>Your opponent's net stats change is <Span css={{ fontWeight: 'bold', color: ((enemyStatsDifferential.current||{}).attack || 0) > 0 ? 'red':'green'}}>{((enemyStatsDifferential.current||{}).attack || 0) >= 0 && '+'}{(enemyStatsDifferential.current||{}).attack || 0 }</Span>/
+                            <Span css={{ fontWeight: 'bold', color: ((enemyStatsDifferential.current||{}).health || 0) > 0 ? 'red':'green'}}>{((enemyStatsDifferential.current||{}).health || 0) >= 0 && '+'}{(enemyStatsDifferential.current||{}).health || 0}</Span>
+                          </ListItem>
+                      }
+
+                      {((buffedMinionsInHand.current||{}).attack != null || (buffedMinionsInHand.current||{}).health != null) && <ListItem>Buffed all minions in hand by +{(buffedMinionsInHand.current||{}).attack || 0}/+{(buffedMinionsInHand.current||{}).health || 0}</ListItem>}
+
+                      {(addedEnemyTaunts.current||0) > 0 && <ListItem>Gave {(addedEnemyTaunts.current||0)} taunt(s) to the opponent</ListItem>}
+                      {(addedEnemyTaunts.current||0) < 0 && <ListItem>Removed {(addedEnemyTaunts.current||0) * -1} taunt(s) from the opponent's board</ListItem>}
+
+                      {celestialAlignment.current && <ListItem><AutoAwesomeIcon fontSize={'small'}/>Celestial Alignment has been activated</ListItem>}
+                      {frostwolfKennels.current && <ListItem><PetsIcon fontSize={'small'}/>Frostwolf Kennels is active</ListItem>}
+                  </ul>
               </Div>
-              {consecutiveClicks > 1 && <Div>After {consecutiveClicks} consecutive "Convoke the Spirits": </Div>}
-              <ul>
-                  {(armorGain.current||0) > 0 && <ListItem><ShieldIcon fontSize="small"/> Gained +{(armorGain.current||0)} armor</ListItem>}
-
-                  {(damageToEnemyHero.current || 0) > 0 && <ListItem><Span css={{color: 'green'}}>Dealt {(damageToEnemyHero.current||0)} damage to the enemy hero</Span></ListItem>}
-                  {(damageToFriendlyHero.current || 0) > 0 && <ListItem><Span css={{color: 'red'}}>Dealt {(damageToFriendlyHero.current||0)} damage to your own hero</Span></ListItem>}
-
-                  {(cardsDrawn.current||0) > 0 && <ListItem><StyleIcon fontSize={'small'}/>Drew +{(cardsDrawn.current||0)} cards</ListItem>}
-                  {(cardsBurnt.current||0) > 0 && <ListItem><LocalFireDepartmentIcon fontSize={'small'}/><Span css={{color: 'red'}}>Burnt {(cardsBurnt.current||0)} cards</Span></ListItem>}
-
-
-                  {(attackGain.current||0) > 0 && <ListItem><FitnessCenterIcon fontSize={'small'}/>Your hero gained +{(attackGain.current||0)} attack</ListItem>}
-
-                  {(gainedUsableMana.current || 0) > 0 && <ListItem><DiamondOutlinedIcon fontSize={'small'}/>Gained +{(gainedUsableMana.current||0)} mana usable this turn</ListItem>}
-                  {(gainedPermanentMana.current||0) > 0 && <ListItem><DiamondIcon fontSize={'small'}/>Gained +{(gainedPermanentMana.current||0)} permanent mana</ListItem>}
-
-                  {(friendlyMinionDifferential.current||0) > 0 && <ListItem>Gained {(friendlyMinionDifferential.current||0)} minion(s) {(addedFriendlyTaunts.current||0) > 0 && `(${addedFriendlyTaunts.current||0} taunt(s))`}</ListItem>}
-                  {(friendlyMinionDifferential.current||0) < 0 && <ListItem><Span css={{color: 'red'}}>You lost {(friendlyMinionDifferential.current||0) * -1} minion(s)</Span></ListItem>}
-                  {(summonedMinionsFromDeck.current||0) > 0 && <ListItem>Summoned {(summonedMinionsFromDeck.current||0)} minion(s) from deck</ListItem>}
-                  {(castSpellsFromDeck.current||0) > 0 && <ListItem>Cast {(castSpellsFromDeck.current||0)} spell(s) from deck</ListItem>}
-
-                  {((friendlyStatsDifferential.current||{}).attack != null || (friendlyStatsDifferential.current||{}).health != null)  &&
-                    <ListItem>Your net stats change is <Span css={{ fontWeight: 'bold', color: ((friendlyStatsDifferential.current||{}).attack || 0) > 0 ? 'green':'red'}}>{((friendlyStatsDifferential.current||{}).attack || 0) >= 0 && '+'}{(friendlyStatsDifferential.current||{}).attack || 0}</Span>/
-                      <Span css={{ fontWeight: 'bold', color: ((friendlyStatsDifferential.current||{}).health || 0) > 0 ? 'green':'red'}}>{((friendlyStatsDifferential.current||{}).health || 0) >= 0 && '+'}{(friendlyStatsDifferential.current||{}).health || 0}</Span>
-                    </ListItem>
-                  }
-
-                  {(enemyMinionDifferential.current||0) < 0 && <ListItem><Span css={{color: 'green'}}>Your opponent lost {(enemyMinionDifferential.current||0) * -1} minion(s)</Span></ListItem>}
-                  {(enemyMinionDifferential.current||0) > 0 && <ListItem>Your opponent gained {(enemyMinionDifferential.current||0)} minion(s)</ListItem>}
-                  {((enemyStatsDifferential.current||{}).attack != null || (enemyStatsDifferential.current||{}).health != null) &&
-                      <ListItem>Your opponent's net stats change is <Span css={{ fontWeight: 'bold', color: ((enemyStatsDifferential.current||{}).attack || 0) > 0 ? 'red':'green'}}>{((enemyStatsDifferential.current||{}).attack || 0) >= 0 && '+'}{(enemyStatsDifferential.current||{}).attack || 0 }</Span>/
-                        <Span css={{ fontWeight: 'bold', color: ((enemyStatsDifferential.current||{}).health || 0) > 0 ? 'red':'green'}}>{((enemyStatsDifferential.current||{}).health || 0) >= 0 && '+'}{(enemyStatsDifferential.current||{}).health || 0}</Span>
-                      </ListItem>
-                  }
-
-                  {((buffedMinionsInHand.current||{}).attack != null || (buffedMinionsInHand.current||{}).health != null) && <ListItem>Buffed all minions in hand by +{(buffedMinionsInHand.current||{}).attack || 0}/+{(buffedMinionsInHand.current||{}).health || 0}</ListItem>}
-
-                  {(addedEnemyTaunts.current||0) > 0 && <ListItem>Gave {(addedEnemyTaunts.current||0)} taunt(s) to the opponent</ListItem>}
-                  {(addedEnemyTaunts.current||0) < 0 && <ListItem>Removed {(addedEnemyTaunts.current||0) * -1} taunt(s) from the opponent's board</ListItem>}
-
-                  {celestialAlignment.current && <ListItem><AutoAwesomeIcon fontSize={'small'}/>Celestial Alignment has been activated</ListItem>}
-                  {frostwolfKennels.current && <ListItem><PetsIcon fontSize={'small'}/>Frostwolf Kennels is active</ListItem>}
-              </ul>
           </Div>
-      </Div>
+        </Div>
         <Snackbar open={isNotEnoughManaPopupVisible} autoHideDuration={6000} onClose={()=>setIsNotEnoughManaPopupVisible(false)}>
             <Alert onClose={()=>setIsNotEnoughManaPopupVisible(false)} severity="warning" sx={{ width: '100%' }}>
                 Not enough mana (you can manually change it, or click reset)

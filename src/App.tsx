@@ -1046,11 +1046,10 @@ export const App = () => {
                 flexDirection: 'row'
             } }}>
           {/* Played cards */}
-            <Div>
+            <Div css={{flex:1}}>
                 <Div css={{fontWeight: 'bold', fontSize: '24px'}}>Played cards</Div>
 
                 <Div css={{
-                      flex:1,
                       padding: '1rem',
                       maxHeight: '15vh',
                       overflow: 'auto',
@@ -1213,7 +1212,8 @@ export const App = () => {
 
               </Div>
           </Div>
-          {/* Stats */}<Div>
+          {/* Stats */}
+            <Div css={{flex:1}}>
             <Div css={{display: 'flex', justifyContent: 'center'}}>
                 <Div css={{fontWeight: 'bold', fontSize: '24px'}}>Stats</Div>
             </Div>

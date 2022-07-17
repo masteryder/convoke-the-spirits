@@ -13,4 +13,6 @@ For most of the cards I coded what the card does, but some others had to be simp
 Here are some of the simplified examples:
 
 - Heart of the Wild: Doesn't ever give the  +1/+1 bonus to all beasts effect
-- Aquatic Form: Counts always as drawing you 1 card
+- Aquatic Form: Always draws a card
+- Living Seed: Always draws a card
+- Mark of the Spikeshell: Counts as "drawing" 1 card if the targeted card has taunt

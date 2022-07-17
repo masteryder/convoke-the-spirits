@@ -263,17 +263,13 @@ export const App = () => {
     const dealRandomDamage = (amount: number) => {
         const randomIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length + 2));
         if(randomIndex >= 0 && randomIndex < (playerBoardState.current||[]).length){
-            console.log('dealing damage to friendly minion');
             dealDamageToFriendlyMinionAt(randomIndex, amount);
         } else if(randomIndex >= (playerBoardState.current||[]).length && randomIndex < (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length ){
-            console.log('dealing damage to enemy minion');
             const opponentIndex = randomIndex - (playerBoardState.current||[]).length;
             dealDamageToOpponentMinionAt(opponentIndex, amount)
         } else if(randomIndex === (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length + 1){
-            console.log('dealing damage to player face');
             dealDamageToPlayerFace(amount);
         } else if(randomIndex === (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length + 2){
-            console.log('dealing damage to enemy face');
             dealDamageToOpponentFace(amount);
         }
     }
@@ -300,30 +296,8 @@ export const App = () => {
             filename: 'best_in_shell',
             name: 'Best in Shell',
             activation_function: ()=> {
-                const boardSize = playerBoardState.current?.length || 0;
-                if(boardSize >= 7) return;
-
-                const tauntsToSummon: Minion[] = [];
-
-                const statsDifferential = {attack: 0, health: 0};
-                let minionsDifferential = 0;
-                let addedTaunts = 0;
-
-                while(tauntsToSummon.length < 7 - boardSize && tauntsToSummon.length < 2){
-                    tauntsToSummon.push({attack: 2, health: 7, modifiers: ['taunt']})
-
-                    statsDifferential.attack = statsDifferential.attack + 2;
-                    statsDifferential.health = statsDifferential.health + 7;
-                    minionsDifferential +=1;
-                    addedTaunts +=1;
-                }
-                setPlayerBoardState([...(playerBoardState.current ||[]), ...tauntsToSummon]);
-                setFriendlyStatsDifferential({
-                    attack: (friendlyStatsDifferential.current?.attack || 0) + statsDifferential.attack,
-                    health: (friendlyStatsDifferential.current?.health || 0) + statsDifferential.health
-                });
-                setFriendlyMinionDifferential((friendlyMinionDifferential.current || 0) + minionsDifferential);
-                setAddedFriendlyTaunts((addedFriendlyTaunts.current || 0) + addedTaunts);
+                const summonedAmount = summonCopies(2, {attack: 2, health: 7, modifiers: ['taunt']})
+                setAddedFriendlyTaunts((addedFriendlyTaunts.current || 0) + summonedAmount);
             }
         },
         {
@@ -402,51 +376,19 @@ export const App = () => {
             activation_function: ()=>{
                 const boardSize = (playerBoardState.current ||[]).length;
                 if(boardSize >= 7) return;
-
-                const statsDifferential = {attack: 0, health: 0};
-                let minionsDifferential = 0;
-                let addedTaunts = 0;
-
                 if(Math.random() > .5){
-                    setPlayerBoardState([...(playerBoardState.current||[]), {attack: 6, health: 6, modifiers: ['taunt']}])
-                    statsDifferential.attack = 6;
-                    statsDifferential.health = 6;
-                    addedTaunts = 1;
-                    minionsDifferential = 1;
+                    const summonedAmount = summonCopies(1, {attack: 6, health: 6, modifiers: ['taunt']})
+                    setAddedFriendlyTaunts((addedFriendlyTaunts.current||0) + summonedAmount);
                 } else {
-                    const ottersToSummon: Minion[] = [];
-                    while(ottersToSummon.length < 7 - boardSize && ottersToSummon.length < 6){
-                        ottersToSummon.push({attack: 1, health: 1, modifiers: ['rush']});
-                        statsDifferential.attack += 1;
-                        statsDifferential.health += 1;
-                        minionsDifferential += 1;
-                    }
-                    setPlayerBoardState([...(playerBoardState.current||[]), ...ottersToSummon]);
+                    summonCopies(6, {attack: 1, health: 1, modifiers: ['rush']})
                 }
-                setFriendlyMinionDifferential((friendlyMinionDifferential.current||0) + minionsDifferential);
-                setFriendlyStatsDifferential( {
-                    attack: (friendlyStatsDifferential.current?.attack || 0) + statsDifferential.attack,
-                    health: (friendlyStatsDifferential.current?.health || 0) + statsDifferential.health
-                });
-                setAddedFriendlyTaunts((addedFriendlyTaunts.current||0)+addedTaunts);
             }
         },
         {
             filename: 'force_of_nature',
             name: 'Force of Nature',
             activation_function: () => {
-                const boardSize = (playerBoardState.current||[]).length;
-                if(boardSize >= 7) return;
-                const treantsToSummon: Minion[] = [];
-                while(treantsToSummon.length < 7 - boardSize && treantsToSummon.length < 3){
-                    treantsToSummon.push({attack: 2, health: 2})
-                }
-                setPlayerBoardState([...(playerBoardState.current||[]), ...treantsToSummon])
-                setFriendlyStatsDifferential( {
-                    attack: (friendlyStatsDifferential.current?.attack || 0) + 2 * treantsToSummon.length,
-                    health: (friendlyStatsDifferential.current?.health || 0) + 2 * treantsToSummon.length
-                });
-                setFriendlyMinionDifferential((friendlyMinionDifferential.current||0) + treantsToSummon.length);
+                summonCopies(3, {attack: 2, health: 2})
             }
         },
         {
@@ -454,14 +396,7 @@ export const App = () => {
             name: 'Frostwolf Kennels',
             end_of_turn_function: () => {
                 setFrostwolfKennels(true);
-                const boardSize = (playerBoardState.current||[]).length;
-                if(boardSize >= 7) return;
-                setPlayerBoardState([...(playerBoardState.current||[]), {attack: 2, health: 2, modifiers: ['stealth']}]);
-                setFriendlyStatsDifferential( {
-                    attack: (friendlyStatsDifferential.current?.attack || 0) + 2,
-                    health: (friendlyStatsDifferential.current?.health || 0) + 2
-                })
-                setFriendlyMinionDifferential((friendlyMinionDifferential.current || 0) + 1 );
+                summonCopies(1, {attack: 2, health: 2, modifiers: ['stealth']})
             }
         },
         {
@@ -547,7 +482,6 @@ export const App = () => {
             filename: 'living_roots',
             activation_function: ()=>{
                 if(Math.random() > .5){
-                    console.log('dealing random damage');
                     dealRandomDamage(2);
                 } else {
                     const boardSize = (playerBoardState.current ||[]).length;
@@ -569,6 +503,20 @@ export const App = () => {
                     });
 
                 }
+            }
+        },
+        {
+            name: 'Living Seed',
+            filename: 'living_seed',
+            activation_function: ()=>{
+                setCardsDrawn((cardsDrawn.current || 0) + 1);
+            }
+        },
+        {
+            name: 'Mark of the Spikeshell',
+            filename: 'mark_of_the_spikeshell',
+            activation_function: () =>{
+
             }
         }
     ];
@@ -669,6 +617,22 @@ export const App = () => {
         setOpponentsArmor((opponentsArmor.current||0)-damageToArmor);
         setOpponentsLife((opponentsLife.current||0)-damageToFace);
         setDamageToEnemyHero((damageToEnemyHero.current||0)+ amount)
+    }
+
+    const summonCopies = (amount: number, minion: Minion): number=>{
+        const boardSize = (playerBoardState.current||[]).length;
+        if(boardSize >= 7) return 0;
+        const minionsToSummon: Minion[] = [];
+        while(minionsToSummon.length < 7 - boardSize && minionsToSummon.length < amount){
+            minionsToSummon.push(minion)
+        }
+        setPlayerBoardState([...(playerBoardState.current||[]), ...minionsToSummon])
+        setFriendlyStatsDifferential( {
+            attack: (friendlyStatsDifferential.current?.attack || 0) + minion.attack * minionsToSummon.length,
+            health: (friendlyStatsDifferential.current?.health || 0) + minion.health * minionsToSummon.length
+        });
+        setFriendlyMinionDifferential((friendlyMinionDifferential.current||0) + minionsToSummon.length);
+        return minionsToSummon.length;
     }
 
     const convoke = () =>{

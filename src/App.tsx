@@ -17,6 +17,10 @@ import DiamondIcon from '@mui/icons-material/Diamond';
 import DiamondOutlinedIcon from '@mui/icons-material/DiamondOutlined';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PetsIcon from '@mui/icons-material/Pets';
+import PanToolIcon from '@mui/icons-material/PanTool';
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
+import {pink} from "@mui/material/colors";
+
 
 const StyledConvoke = styled('img',{
     width: '256px',
@@ -111,6 +115,36 @@ const StyledHeroAttack = styled(StyledStatInput,{
     height: '24px',
 });
 
+const StyledHeroHandSizeWrapper = styled('div',{
+    position: 'absolute',
+    fontSize: '20px',
+    right: '-200px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+});
+
+const StyledHeroHandSize = styled(StyledStatInput, {
+    color: 'white',
+    fontSize: '20px',
+    width: '24px',
+    height: '24px',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    background: 'transparent'
+});
+
+const StyledHeroHandSizeIcon = styled('div',{
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
+})
+
 const StyledGuffCheckboxWrapper = styled('div',{
     left: '-200px',
     top: '50%',
@@ -188,6 +222,7 @@ const StyledMinionHealth = styled(StyledStatInput, {
 interface Buff{
     attack?: number;
     health?: number;
+    modifiers?: string[];
 }
 
 interface Minion {
@@ -215,6 +250,7 @@ export const App = () => {
     const [playerBoardState, setPlayerBoardState] = useAsyncReference<Minion[]>([]);
 
     const [playersLife, setPlayersLife] = useAsyncReference<number>(30);
+    const [playersHandSize, setPlayersHandSize] = useAsyncReference<number>(5);
     const [playersArmor, setPlayersArmor] = useAsyncReference<number>(0);
     const [playersAttack, setPlayersAttack] = useAsyncReference<number>(0);
     const [playerTotalMana, setPlayerTotalMana] = useAsyncReference<number>(10);
@@ -242,6 +278,7 @@ export const App = () => {
     const [damageToFriendlyHero, setDamageToFriendlyHero]  = useAsyncReference<number>(0);
 
     const [cardsDrawn, setCardsDrawn] = useAsyncReference<number>(0);
+    const [cardsBurnt, setCardsBurnt] = useAsyncReference<number>(0);
     const [attackGain, setAttackGain] = useAsyncReference<number>(0);
 
     const [friendlyMinionDifferential, setFriendlyMinionDifferential] = useAsyncReference<number>(0);
@@ -250,8 +287,11 @@ export const App = () => {
     const [enemyMinionDifferential, setEnemyMinionDifferential] = useAsyncReference<number>(0);
     const [enemyStatsDifferential, setEnemyStatsDifferential] = useAsyncReference<Buff>({});
 
-    const [gainedUsableMana, setGainedUsableMana] =useAsyncReference<number>(0);
-    const [gainedPermanentMana, setGainedPermanentMana] =useAsyncReference<number>(0);
+    const [gainedUsableMana, setGainedUsableMana] = useAsyncReference<number>(0);
+    const [gainedPermanentMana, setGainedPermanentMana] = useAsyncReference<number>(0);
+
+    const [summonedMinionsFromDeck, setSummonedMinionsFromDeck] = useAsyncReference<number>(0);
+    const [castSpellsFromDeck, setCastSpellsFromDeck] = useAsyncReference<number>(0);
 
     // played cards
     const [playedCards, setPlayedCards] = useAsyncReference<Card[]>([]);
@@ -259,6 +299,99 @@ export const App = () => {
     // State only
     const [isNotEnoughManaPopupVisible, setIsNotEnoughManaPopupVisible] = useState(false);
     const [consecutiveClicks, setConsecutiveClicks] = useState(0);
+
+    const buffPlayerMinionAt = (index: number, buff: Buff)=>{
+        const buffedMinion = {
+            ...(playerBoardState.current || [])[index],
+            attack: (playerBoardState.current || [])[index].attack + (buff.attack||0),
+            health: (playerBoardState.current || [])[index].health + (buff.health||0),
+            modifiers: [
+                ...((playerBoardState.current || [])[index].modifiers ||[])
+                ,...(buff.modifiers||[])]
+        };
+        setFriendlyStatsDifferential( {
+            attack: (friendlyStatsDifferential.current?.attack || 0) + (buff.attack||0),
+            health: (friendlyStatsDifferential.current?.health || 0) + (buff.health||0)
+        });
+        if((buff.modifiers||[]).indexOf('taunt') > -1 && ((playerBoardState.current || [])[index].modifiers ||[]).indexOf('taunt') < 0){
+            setAddedFriendlyTaunts((addedFriendlyTaunts.current||0)+1)
+        }
+        replaceFriendlyMinionAt(index, buffedMinion);
+        return buffedMinion;
+    }
+
+    const buffOpponentMinionAt = (index: number, buff: Buff)=>{
+        const buffedMinion = {
+            ...(opponentBoardState.current || [])[index],
+            attack: (opponentBoardState.current || [])[index].attack + (buff.attack||0),
+            health: (opponentBoardState.current || [])[index].health + (buff.health||0),
+            modifiers: [
+                ...((opponentBoardState.current || [])[index].modifiers ||[])
+                ,...(buff.modifiers||[])]
+        };
+        setEnemyStatsDifferential( {
+            attack: (enemyStatsDifferential.current?.attack || 0) + (buff.attack||0),
+            health: (enemyStatsDifferential.current?.health || 0) + (buff.health||0)
+        });
+        if((buff.modifiers||[]).indexOf('taunt') > -1 && ((opponentBoardState.current || [])[index].modifiers ||[]).indexOf('taunt') < 0){
+            setAddedEnemyTaunts((addedEnemyTaunts.current||0)+1)
+        }
+        replaceOpponentsMinionAt(index, buffedMinion);
+        return buffedMinion;
+    }
+
+    const buffAllFriendlyMinions = (buff: Buff)=>{
+        const friendlyMinionCount = (playerBoardState.current || []).length;
+        for(let i = 0; i < friendlyMinionCount; i++){
+            buffPlayerMinionAt(i,buff);
+        }
+
+    }
+
+    const buffRandomMinion = (buff: Buff) => {
+        if((playerBoardState.current || []).length === 0 && (opponentBoardState.current || []).length === 0) return;
+
+        const randomIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length));
+        if(randomIndex >= 0 && randomIndex < (playerBoardState.current||[]).length) {
+            return buffPlayerMinionAt(randomIndex,buff);
+        }
+        else if(randomIndex >= (playerBoardState.current||[]).length && randomIndex < (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length ){
+            const opponentIndex = randomIndex - (playerBoardState.current||[]).length;
+            return buffOpponentMinionAt(opponentIndex, buff);
+        }
+    }
+
+    const buffRandomFriendlyMinion = (buff: Buff)=>{
+        if((playerBoardState.current || []).length === 0) return;
+        const randomIndex = Math.floor(Math.random() * (playerBoardState.current||[]).length );
+        return buffPlayerMinionAt(randomIndex,buff);
+    }
+
+    const dealDamageToRandomEnemy = (amount: number)=>{
+        if((opponentBoardState.current || []).length === 0 && (opponentBoardState.current || []).length === 0){
+            dealDamageToOpponentFace(amount);
+        } else {
+            const randomIndex = Math.floor(Math.random() * ((opponentBoardState.current||[]).length + 1));
+            if(randomIndex === (opponentBoardState.current||[]).length){
+                dealDamageToOpponentFace(amount);
+            } else {
+                dealDamageToOpponentMinionAt(randomIndex, amount)
+            }
+        }
+    }
+
+    const dealDamageToRandomMinion = (amount: number)=>{
+        if((playerBoardState.current || []).length === 0 && (opponentBoardState.current || []).length === 0) return;
+
+        const randomIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length));
+        if(randomIndex >= 0 && randomIndex < (playerBoardState.current||[]).length) {
+            dealDamageToFriendlyMinionAt(randomIndex, amount);
+        }
+        else if(randomIndex >= (playerBoardState.current||[]).length && randomIndex < (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length ){
+            const opponentIndex = randomIndex - (playerBoardState.current||[]).length;
+            dealDamageToOpponentMinionAt(opponentIndex, amount);
+        }
+    }
 
     const dealRandomDamage = (amount: number) => {
         const randomIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length + 2));
@@ -274,12 +407,34 @@ export const App = () => {
         }
     }
 
+    const addCardsToHand = (amount: number) => {
+        const currentHandSize = (playersHandSize.current || 0);
+        if(currentHandSize + amount > 10) {
+            setPlayersHandSize(10);
+            setCardsDrawn((cardsDrawn.current||0) + (10 - currentHandSize));
+        } else{
+            setPlayersHandSize(currentHandSize + amount);
+            setCardsDrawn((cardsDrawn.current||0) + amount)
+        }
+    }
+
+    const drawCards = (amount: number) => {
+        setCardsDrawn((cardsDrawn.current||0) + amount);
+        const currentHandSize = (playersHandSize.current || 0);
+        if(currentHandSize + amount > 10){
+            setCardsBurnt((cardsBurnt.current || 0) + (currentHandSize - 10 + amount));
+            setPlayersHandSize(10)
+        } else {
+            setPlayersHandSize((playersHandSize.current || 0)+amount)
+        }
+    }
+
     const cardPool: Card[] = [
         {
             filename: 'aquatic_form',
             name: 'Aquatic Form',
             activation_function: ()=>{
-                setCardsDrawn((cardsDrawn.current || 0) + 1);
+                drawCards(1);
             }
         },
         {
@@ -296,15 +451,14 @@ export const App = () => {
             filename: 'best_in_shell',
             name: 'Best in Shell',
             activation_function: ()=> {
-                const summonedAmount = summonCopies(2, {attack: 2, health: 7, modifiers: ['taunt']})
-                setAddedFriendlyTaunts((addedFriendlyTaunts.current || 0) + summonedAmount);
+                summonCopies(2, {attack: 2, health: 7, modifiers: ['taunt']})
             }
         },
         {
             filename: 'capture_coldtooth_mine',
             name: 'Capture Coldtooth Mine',
             activation_function: ()=>{
-                setCardsDrawn((cardsDrawn.current || 0)+1);
+                drawCards(1);
             }
         },
         {
@@ -340,28 +494,18 @@ export const App = () => {
             filename: 'earthen_scales',
             name: 'Earthen Scales',
             activation_function: ()=>{
-                if((playerBoardState.current || []).length === 0) return;
-
-                const randomMinionIndex = Math.floor(Math.random() * (playerBoardState.current || []).length);
-                const randomMinion = (playerBoardState.current || [])[randomMinionIndex];
-                updateFriendlyMinionAt(randomMinionIndex, {
-                    ...(playerBoardState.current || [])[randomMinionIndex],
-                    attack: (playerBoardState.current || [])[randomMinionIndex].attack + 1,
-                    health: (playerBoardState.current || [])[randomMinionIndex].health + 1
-                });
-                setFriendlyStatsDifferential( {
-                    attack: (friendlyStatsDifferential.current?.attack || 0) + 1,
-                    health: (friendlyStatsDifferential.current?.health || 0) + 1
-                })
-                setPlayersArmor((playersArmor.current||0) + randomMinion.attack + 1)
-                setArmorGain((armorGain.current||0) + randomMinion.attack + 1);
+                const buffedMinion = buffRandomFriendlyMinion({attack: 1, health: 1});
+                if(buffedMinion?.attack != null){
+                    setPlayersArmor((playersArmor.current||0) + buffedMinion?.attack || 0)
+                    setArmorGain((armorGain.current||0) + (buffedMinion?.attack || 0));
+                }
             }
         },
         {
             filename: 'feral_rage',
             name: 'Feral Rage',
             activation_function: ()=> {
-                if(Math.random() > .5){
+                if(Math.random() >= .5){
                     setPlayersAttack((playersAttack.current || 0)+4);
                     setAttackGain((attackGain.current || 0) + 4);
                 } else {
@@ -376,9 +520,8 @@ export const App = () => {
             activation_function: ()=>{
                 const boardSize = (playerBoardState.current ||[]).length;
                 if(boardSize >= 7) return;
-                if(Math.random() > .5){
-                    const summonedAmount = summonCopies(1, {attack: 6, health: 6, modifiers: ['taunt']})
-                    setAddedFriendlyTaunts((addedFriendlyTaunts.current||0) + summonedAmount);
+                if(Math.random() >= .5){
+                    summonCopies(1, {attack: 6, health: 6, modifiers: ['taunt']})
                 } else {
                     summonCopies(6, {attack: 1, health: 1, modifiers: ['rush']})
                 }
@@ -395,113 +538,42 @@ export const App = () => {
             filename: 'frostwolf_kennels',
             name: 'Frostwolf Kennels',
             end_of_turn_function: () => {
+                if(!frostwolfKennels.current ){
+                    summonCopies(1, {attack: 2, health: 2, modifiers: ['stealth']})
+                }
                 setFrostwolfKennels(true);
-                summonCopies(1, {attack: 2, health: 2, modifiers: ['stealth']})
+
             }
         },
         {
             filename: 'heart_of_the_wild',
             name: 'Heart of the Wild',
             activation_function: () => {
-                if((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length === 0) return;
-
-                const randomMinionIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length));
-
-                if(randomMinionIndex < (playerBoardState.current||[]).length){
-                    updateFriendlyMinionAt(randomMinionIndex, {
-                        ...(playerBoardState.current||[])[randomMinionIndex],
-                        attack: (playerBoardState.current||[])[randomMinionIndex].attack + 2,
-                        health: (playerBoardState.current||[])[randomMinionIndex].health + 2
-                    })
-                    setFriendlyStatsDifferential( {
-                        attack: (friendlyStatsDifferential.current?.attack || 0) + 2,
-                        health: (friendlyStatsDifferential.current?.health || 0) + 2
-                    })
-                } else {
-                    const opponentIndex = randomMinionIndex - (playerBoardState.current||[]).length;
-                    updateOpponentsMinionAt(opponentIndex, {
-                        ...(opponentBoardState.current||[])[opponentIndex],
-                        attack: (opponentBoardState.current||[])[randomMinionIndex].attack + 2,
-                        health: (opponentBoardState.current||[])[randomMinionIndex].health + 2
-                    });
-                    setEnemyStatsDifferential({
-                        attack: (enemyStatsDifferential.current?.attack || 0) + 2,
-                        health: (enemyStatsDifferential.current?.health || 0) + 2}
-                    )
-                }
+                buffRandomMinion({attack: 2, health: 2});
             }
         },
         {
             name: 'Innervate',
             filename: 'innervate',
             activation_function: ()=>{
-                const maxMana = playerHasGuff.current ? 20 : 10;
-                if((playerFullMana.current || 0 ) < maxMana){
-                    setPlayerFullMana((playerFullMana.current || 0) + 1);
-                    setGainedUsableMana((gainedUsableMana.current || 0) + 1)
-                }
+                gainTemporaryMana(1);
             }
         },
         {
             name: 'Kodo Mount',
             filename: 'kodo_mount',
             activation_function: () => {
-                if((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length === 0) return;
-
-                const randomMinionIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length));
-
-                if(randomMinionIndex < (playerBoardState.current||[]).length){
-                    updateFriendlyMinionAt(randomMinionIndex, {
-                        ...(playerBoardState.current||[])[randomMinionIndex],
-                        attack: (playerBoardState.current||[])[randomMinionIndex].attack + 4,
-                        health: (playerBoardState.current||[])[randomMinionIndex].health + 2,
-                        modifiers: [...(playerBoardState.current||[])[randomMinionIndex]?.modifiers || [], 'rush', 'kodo mount']
-                    })
-                    setFriendlyStatsDifferential( {
-                        attack: (friendlyStatsDifferential.current?.attack || 0) + 4,
-                        health: (friendlyStatsDifferential.current?.health || 0) + 2
-                    })
-                } else {
-                    const opponentIndex = randomMinionIndex - (playerBoardState.current||[]).length;
-                    updateOpponentsMinionAt(opponentIndex, {
-                        ...(opponentBoardState.current||[])[opponentIndex],
-                        attack: (opponentBoardState.current||[])[opponentIndex].attack + 4,
-                        health: (opponentBoardState.current||[])[opponentIndex].health + 2,
-                        modifiers: [...(opponentBoardState.current||[])[opponentIndex]?.modifiers || [], 'rush', 'kodo mount']
-
-                    });
-                    setEnemyStatsDifferential({
-                        attack: (enemyStatsDifferential.current?.attack || 0) + 4,
-                        health: (enemyStatsDifferential.current?.health || 0) + 2}
-                    )
-                }
+                buffRandomMinion({attack: 4, health: 2, modifiers: ['rush', 'kodo mount']});
             }
         },
         {
             name: 'Living Roots',
             filename: 'living_roots',
             activation_function: ()=>{
-                if(Math.random() > .5){
+                if(Math.random() >= .5){
                     dealRandomDamage(2);
                 } else {
-                    const boardSize = (playerBoardState.current ||[]).length;
-                    if(boardSize >= 7) return;
-                    const statsDifferential = {attack: 0, health: 0};
-                    let minionsDifferential = 0;
-                    const saplingsToSummon: Minion[] = [];
-                    while(saplingsToSummon.length < 7 - boardSize && saplingsToSummon.length < 2){
-                        saplingsToSummon.push({attack: 1, health: 1});
-                        statsDifferential.attack += 1;
-                        statsDifferential.health += 1;
-                        minionsDifferential += 1;
-                    }
-                    setPlayerBoardState([...(playerBoardState.current||[]), ...saplingsToSummon]);
-                    setFriendlyMinionDifferential((friendlyMinionDifferential.current||0) + minionsDifferential);
-                    setFriendlyStatsDifferential( {
-                        attack: (friendlyStatsDifferential.current?.attack || 0) + statsDifferential.attack,
-                        health: (friendlyStatsDifferential.current?.health || 0) + statsDifferential.health
-                    });
-
+                    summonCopies(2, {attack: 1, health: 1})
                 }
             }
         },
@@ -509,26 +581,186 @@ export const App = () => {
             name: 'Living Seed',
             filename: 'living_seed',
             activation_function: ()=>{
-                setCardsDrawn((cardsDrawn.current || 0) + 1);
+                drawCards(1);
             }
         },
         {
             name: 'Mark of the Spikeshell',
             filename: 'mark_of_the_spikeshell',
             activation_function: () =>{
+                const buffedMinion = buffRandomMinion({attack: 2, health: 2});
+                if((buffedMinion?.modifiers||[]).indexOf('taunt') > -1){
+                    addCardsToHand(1);
+                }
+            }
+        },
+        {
+            name: 'Mark of the Wild',
+            filename: 'mark_of_the_wild',
+            activation_function: ()=>{
+                buffRandomMinion({attack: 2, health: 3});
+            }
+        },
+        {
+            name: 'Miracle Growth',
+            filename: 'miracle_growth',
+            activation_function: () => {
+                drawCards(3);
+                summonCopies(1, {attack: playersHandSize.current||0, health: playersHandSize.current||0,modifiers:['taunt']})
+            }
 
+        },
+        {
+            name: 'Moonbeam',
+            filename: 'moonbeam',
+            activation_function: () =>{
+                dealDamageToRandomEnemy(2);
+            }
+        },
+        {
+            name: 'Moonlit Guidance',
+            filename: 'moonlit_guidance',
+            activation_function: ()=>{
+                drawCards(1);
+            }
+        },
+        {
+            name: 'Natural Causes',
+            filename: 'natural_causes',
+            activation_function: ()=>{
+                dealRandomDamage(2);
+                summonCopies(1,{attack: 2, health: 2});
+            }
+        },
+        {
+            name: 'Nightshade Bud',
+            filename: 'nightshade_bud',
+            activation_function: () =>{
+                if(Math.random() >= .5){
+                    const summonedMinions = summonCopies(1,{attack: 4, health: 4});
+                    if(summonedMinions > 0){
+                        setSummonedMinionsFromDeck((summonedMinionsFromDeck.current || 0) + 1)
+                    }
+                } else{
+                    setCastSpellsFromDeck((castSpellsFromDeck.current || 0) + 1);
+                }
+            }
+        },
+        {
+            name: 'Nourish',
+            filename: 'nourish',
+            activation_function: () =>{
+                if(Math.random() >= .5){
+                    gainFullMana(2);
+                } else{
+                    drawCards(3);
+                }
+            }
+        },
+        {
+            name: 'Planted Evidence',
+            filename: 'planted_evidence',
+            activation_function: () =>{
+                addCardsToHand(1);
+            }
+        },
+        {
+            name: 'Plot of Sin',
+            filename: 'plot_of_sin',
+            activation_function: () =>{
+                summonCopies(2, {attack: 2, health: 2})
+            }
+        },
+        {
+            name: 'Pounce',
+            filename: 'pounce',
+            activation_function: () =>{
+                setPlayersAttack((playersAttack.current||0)+2);
+                setAttackGain((attackGain.current||0) + 2);
+            }
+        },
+        {
+            name: 'Power of the Wild',
+            filename: 'power_of_the_wild',
+            activation_function: ()=>{
+                if(Math.random() >= .5){
+                    buffAllFriendlyMinions({attack: 1, health: 1})
+                } else {
+                    summonCopies(1, {attack: 3, health: 2})
+                }
+            }
+        },
+        {
+            name: "Pride's Fury",
+            filename: 'prides_fury',
+            activation_function: ()=> {
+                buffAllFriendlyMinions({attack: 1, health: 3});
+            }
+        },
+        {
+            name: 'Scale of Onyxia',
+            filename: 'scale_of_onyxia',
+            activation_function: ()=>{
+                summonCopies(7, {attack: 2, health: 1, modifiers: ['rush']})
+            }
+        },
+        {
+            name: 'Seaweed Strike',
+            filename: 'seaweed_strike',
+            activation_function: ()=>{
+                dealDamageToRandomMinion(4);
+            }
+        },
+        {
+            name: 'Soul of the Forest',
+            filename: 'soul_of_the_forest',
+            activation_function: ()=>{
+                buffAllFriendlyMinions({modifiers:['soul of the forest']})
+            }
+        },{
+            name: 'Sow the Soil',
+            filename: 'sow_the_soil',
+            activation_function:()=>{
+                if(Math.random() >= .5) {
+                    buffAllFriendlyMinions({attack: 1});
+                } else{
+                    summonCopies(1,{attack: 2, health: 2})
+                }
+            }
+        },{
+            name: 'Thorngrowth Sentries',
+            filename: 'thorngrowth_sentries',
+            activation_function: ()=>{
+                summonCopies(2, {attack: 1, health: 2, modifiers:['taunt']});
+            }
+        },{
+            name: 'Wild Growth',
+            filename: 'wild_growth',
+            activation_function: ()=>{
+                gainEmptyMana(1);
+            }
+        },{
+            name: 'Wrath',
+            filename: 'wrath',
+            activation_function: ()=>{
+                if(Math.random() >= .5) {
+                    dealDamageToRandomMinion(3);
+                } else{
+                    dealDamageToRandomMinion(1);
+                    drawCards(1);
+                }
             }
         }
     ];
 
-    const updateFriendlyMinionAt = (index: number, newValue: Minion) => {
+    const replaceFriendlyMinionAt = (index: number, newValue: Minion) => {
         setPlayerBoardState([
             ...(playerBoardState.current||[]).slice(0, index),
             newValue,
             ...(playerBoardState.current||[]).slice(index+1)
         ]);
     }
-    const updateOpponentsMinionAt = (index: number, newValue: Minion) => {
+    const replaceOpponentsMinionAt = (index: number, newValue: Minion) => {
         setOpponentBoardState([
             ...(opponentBoardState.current||[]).slice(0, index),
             newValue,
@@ -558,8 +790,11 @@ export const App = () => {
                 health: ((friendlyStatsDifferential.current||{}).health ||0) - minion.health
             });
             setFriendlyMinionDifferential((friendlyMinionDifferential.current || 0) -1)
+            if((minion.modifiers||[]).indexOf('taunt')>-1){
+                setAddedFriendlyTaunts((addedFriendlyTaunts.current||0) -1);
+            }
         } else {
-            updateFriendlyMinionAt(index, {
+            replaceFriendlyMinionAt(index, {
                 ...(playerBoardState.current||[])[index],
                 health: (playerBoardState.current||[])[index].health - amount});
             setFriendlyStatsDifferential({
@@ -577,8 +812,11 @@ export const App = () => {
                 health: ((enemyStatsDifferential.current||{}).health ||0) - minion.health
             });
             setEnemyMinionDifferential((enemyMinionDifferential.current || 0) -1)
+            if((minion.modifiers||[]).indexOf('taunt')>-1){
+                setAddedEnemyTaunts((addedEnemyTaunts.current||0) -1);
+            }
         } else {
-            updateOpponentsMinionAt(index, {
+            replaceOpponentsMinionAt(index, {
                 ...(opponentBoardState.current||[])[index],
                 health: (opponentBoardState.current||[])[index].health - amount});
             setEnemyStatsDifferential({
@@ -632,6 +870,9 @@ export const App = () => {
             health: (friendlyStatsDifferential.current?.health || 0) + minion.health * minionsToSummon.length
         });
         setFriendlyMinionDifferential((friendlyMinionDifferential.current||0) + minionsToSummon.length);
+        if((minion.modifiers||[]).indexOf('taunt')>-1){
+            setAddedFriendlyTaunts(minionsToSummon.length);
+        }
         return minionsToSummon.length;
     }
 
@@ -694,6 +935,11 @@ export const App = () => {
         setDamageToFriendlyHero(0);
         setDamageToEnemyHero(0);
         setConsecutiveClicks(0);
+
+        setPlayersHandSize(5);
+        setCardsBurnt(0);
+        setSummonedMinionsFromDeck(0);
+        setCastSpellsFromDeck(0);
     }
 
     const generateBoard = (minStats: number, maxStats: number, minMinions: number, maxMinions: number): Minion[] => {
@@ -736,6 +982,43 @@ export const App = () => {
         if(forWho === 'opponent'){
             setOpponentBoardState(board);
         }
+    }
+
+    const gainTemporaryMana = (amount: number) => {
+        const maxMana = playerHasGuff.current ? 20 : 10;
+        let additionalUsableMana = amount;
+
+        if(((playerFullMana.current || 0 ) + amount) > maxMana){
+            additionalUsableMana =  maxMana - (playerFullMana.current || 0);
+        }
+        setPlayerFullMana((playerFullMana.current || 0) + additionalUsableMana);
+        setGainedUsableMana((gainedUsableMana.current || 0) + additionalUsableMana);
+    }
+
+    const gainFullMana = (amount: number) => {
+        const maxMana = playerHasGuff.current ? 20 : 10;
+        let additionalUsableMana = amount;
+        let additionalPermanentMana = amount;
+
+        if(((playerFullMana.current || 0 ) + amount) > maxMana){
+            additionalUsableMana =  maxMana - (playerFullMana.current || 0);
+        }
+        if(((playerTotalMana.current || 0 ) + amount) > maxMana){
+            additionalPermanentMana =  maxMana - (playerTotalMana.current || 0);
+        }
+        setPlayerFullMana((playerFullMana.current || 0) + additionalUsableMana);
+        setPlayerTotalMana((playerTotalMana.current || 0) + additionalPermanentMana);
+        setGainedUsableMana((gainedUsableMana.current || 0) + additionalUsableMana);
+        setGainedPermanentMana((gainedPermanentMana.current || 0) + additionalPermanentMana);
+    }
+    const gainEmptyMana = (amount: number)=> {
+        const maxMana = playerHasGuff.current ? 20 : 10;
+        let additionalPermanentMana = amount;
+        if(((playerTotalMana.current || 0 ) + amount) > maxMana){
+            additionalPermanentMana =  maxMana - (playerTotalMana.current || 0);
+        }
+        setPlayerTotalMana((playerTotalMana.current || 0) + additionalPermanentMana);
+        setGainedPermanentMana((gainedPermanentMana.current || 0) + additionalPermanentMana);
     }
 
 /*
@@ -804,8 +1087,8 @@ export const App = () => {
                   {(opponentBoardState.current||[]).map((minion: Minion, index: number)=>(
                       <StyledMinion>
                         {(minion.modifiers||[]).length > 0 && <Tooltip title={(minion.modifiers||[]).join(', ')}><StyledMinionModifiers>*</StyledMinionModifiers></Tooltip>}
-                        <StyledMinionAttack min={0} type={'number'} value={minion.attack} onChange={(e)=>updateOpponentsMinionAt(index,{...minion, attack: parseInt(e.target.value)})}/>
-                        <StyledMinionHealth min={1} type={'number'} value={minion.health} onChange={(e)=>updateOpponentsMinionAt(index,{...minion, health: parseInt(e.target.value) > 0 ? parseInt(e.target.value): 1})}/>
+                        <StyledMinionAttack min={0} type={'number'} value={minion.attack} onChange={(e)=>replaceOpponentsMinionAt(index,{...minion, attack: parseInt(e.target.value)})}/>
+                        <StyledMinionHealth min={1} type={'number'} value={minion.health} onChange={(e)=>replaceOpponentsMinionAt(index,{...minion, health: parseInt(e.target.value) > 0 ? parseInt(e.target.value): 1})}/>
                     </StyledMinion>
                   ))}
               </Div>
@@ -834,8 +1117,8 @@ export const App = () => {
                   {(playerBoardState.current||[]).map((minion: Minion, index: number)=>(
                       <StyledMinion>
                           {(minion.modifiers||[]).length > 0 && <Tooltip title={(minion.modifiers||[]).join(', ')}><StyledMinionModifiers>*</StyledMinionModifiers></Tooltip>}
-                          <StyledMinionAttack min={0} type={'number'} value={minion.attack} onChange={(e)=>updateFriendlyMinionAt(index,{...minion, attack: parseInt(e.target.value)})}/>
-                          <StyledMinionHealth min={1} type={'number'} value={minion.health} onChange={(e)=>updateFriendlyMinionAt(index,{...minion, health: parseInt(e.target.value) > 0 ? parseInt(e.target.value): 1})}/>
+                          <StyledMinionAttack min={0} type={'number'} value={minion.attack} onChange={(e)=>replaceFriendlyMinionAt(index,{...minion, attack: parseInt(e.target.value)})}/>
+                          <StyledMinionHealth min={1} type={'number'} value={minion.health} onChange={(e)=>replaceFriendlyMinionAt(index,{...minion, health: parseInt(e.target.value) > 0 ? parseInt(e.target.value): 1})}/>
                       </StyledMinion>
                   ))}
               </Div>
@@ -872,6 +1155,12 @@ export const App = () => {
                                                    }
                           }}/>
                       </StyledPlayerMana>
+                      <StyledHeroHandSizeWrapper>
+                          <StyledHeroHandSizeIcon><PanToolIcon sx={{ color: pink[300], fontSize: 40, marginTop: '-15px', marginLeft: '-12px' }}/></StyledHeroHandSizeIcon>
+                          <StyledHeroHandSize min={0} max={10} type={'number'} value={playersHandSize.current||0} onChange={(e)=>{
+                              setPlayersHandSize(parseInt(e.target.value) <=10 ? parseInt(e.target.value) : 10)
+                          }}></StyledHeroHandSize>
+                      </StyledHeroHandSizeWrapper>
                       <StyledHeroArmor min={0} type={'number'} value={playersArmor.current||0} onChange={(e)=>{setPlayersArmor(parseInt(e.target.value))}}/>
                       <StyledHeroLife min={0} type={'number'} value={playersLife.current||0} onChange={(e)=>{setPlayersLife(parseInt(e.target.value))}}/>
                       <StyledHeroAttack min={0} type={'number'} value={playersAttack.current||0} onChange={(e)=>{setPlayersAttack(parseInt(e.target.value))}}/>
@@ -910,6 +1199,9 @@ export const App = () => {
                   {(damageToFriendlyHero.current || 0) > 0 && <ListItem><Span css={{color: 'red'}}>Dealt {(damageToFriendlyHero.current||0)} damage to your own hero</Span></ListItem>}
 
                   {(cardsDrawn.current||0) > 0 && <ListItem><StyleIcon fontSize={'small'}/>Drew +{(cardsDrawn.current||0)} cards</ListItem>}
+                  {(cardsBurnt.current||0) > 0 && <ListItem><LocalFireDepartmentIcon fontSize={'small'}/><Span css={{color: 'red'}}>Burnt {(cardsBurnt.current||0)} cards</Span></ListItem>}
+
+
                   {(attackGain.current||0) > 0 && <ListItem><FitnessCenterIcon fontSize={'small'}/>Your hero gained +{(attackGain.current||0)} attack</ListItem>}
 
                   {(gainedUsableMana.current || 0) > 0 && <ListItem><DiamondOutlinedIcon fontSize={'small'}/>Gained +{(gainedUsableMana.current||0)} mana usable this turn</ListItem>}
@@ -917,6 +1209,8 @@ export const App = () => {
 
                   {(friendlyMinionDifferential.current||0) > 0 && <ListItem>Gained {(friendlyMinionDifferential.current||0)} minion(s) {(addedFriendlyTaunts.current||0) > 0 && `(${addedFriendlyTaunts.current||0} taunt(s))`}</ListItem>}
                   {(friendlyMinionDifferential.current||0) < 0 && <ListItem><Span css={{color: 'red'}}>You lost {(friendlyMinionDifferential.current||0) * -1} minion(s)</Span></ListItem>}
+                  {(summonedMinionsFromDeck.current||0) > 0 && <ListItem>Summoned {(summonedMinionsFromDeck.current||0)} minion(s) from deck</ListItem>}
+                  {(castSpellsFromDeck.current||0) > 0 && <ListItem>Cast {(castSpellsFromDeck.current||0)} spell(s) from deck</ListItem>}
 
                   {((friendlyStatsDifferential.current||{}).attack != null || (friendlyStatsDifferential.current||{}).health != null)  &&
                     <ListItem>Your net stats change is <Span css={{ fontWeight: 'bold', color: ((friendlyStatsDifferential.current||{}).attack || 0) > 0 ? 'green':'red'}}>{((friendlyStatsDifferential.current||{}).attack || 0) >= 0 && '+'}{(friendlyStatsDifferential.current||{}).attack || 0}</Span>/

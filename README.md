@@ -5,7 +5,7 @@ This is for standard mode only, I didn't want to code every druid spell in the g
 
 ### Shortcuts I took
 
-- The app doesn't care about hand / deck size or cards in hand / deck
+- The app doesn't care about deck size or cards in deck
 - There are no minion types
 - Cards can have keywords such as "rush" multiple times
 
@@ -15,4 +15,4 @@ Here are some of the simplified examples:
 - Heart of the Wild: Doesn't ever give the  +1/+1 bonus to all beasts effect
 - Aquatic Form: Always draws a card
 - Living Seed: Always draws a card
-- Mark of the Spikeshell: Counts as "drawing" 1 card if the targeted card has taunt
+- Nightshade Bud: When summoning from deck, always summons a 4/4

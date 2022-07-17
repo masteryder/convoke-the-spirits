@@ -16,3 +16,7 @@ Here are some of the simplified examples:
 - Aquatic Form: Always draws a card
 - Living Seed: Always draws a card
 - Nightshade Bud: When summoning from deck, always summons a 4/4
+
+
+Created by João Ventura © 2022 
+joao-ventura@outlook.com

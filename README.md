@@ -5,7 +5,9 @@ This is for standard mode only, I didn't want to code every druid spell in the g
 
 ### Shortcuts I took
 
-- The app doesn't care about hand / deck size
+- The app doesn't care about hand / deck size or cards in hand / deck
+- There are no minion types
+- Cards can have keywords such as "rush" multiple times
 
 For most of the cards I coded what the card does, but some others had to be simplified.
 Here are some of the simplified examples:

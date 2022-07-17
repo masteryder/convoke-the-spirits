@@ -13,6 +13,10 @@ import ShieldIcon from '@mui/icons-material/Shield';
 import StyleIcon from '@mui/icons-material/Style';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import {useAsyncReference} from "./hooks/useAsyncReference";
+import DiamondIcon from '@mui/icons-material/Diamond';
+import DiamondOutlinedIcon from '@mui/icons-material/DiamondOutlined';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import PetsIcon from '@mui/icons-material/Pets';
 
 const StyledConvoke = styled('img',{
     width: '256px',
@@ -246,12 +250,33 @@ export const App = () => {
     const [enemyMinionDifferential, setEnemyMinionDifferential] = useAsyncReference<number>(0);
     const [enemyStatsDifferential, setEnemyStatsDifferential] = useAsyncReference<Buff>({});
 
+    const [gainedUsableMana, setGainedUsableMana] =useAsyncReference<number>(0);
+    const [gainedPermanentMana, setGainedPermanentMana] =useAsyncReference<number>(0);
+
     // played cards
     const [playedCards, setPlayedCards] = useAsyncReference<Card[]>([]);
 
     // State only
     const [isNotEnoughManaPopupVisible, setIsNotEnoughManaPopupVisible] = useState(false);
+    const [consecutiveClicks, setConsecutiveClicks] = useState(0);
 
+    const dealRandomDamage = (amount: number) => {
+        const randomIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length + 2));
+        if(randomIndex >= 0 && randomIndex < (playerBoardState.current||[]).length){
+            console.log('dealing damage to friendly minion');
+            dealDamageToFriendlyMinionAt(randomIndex, amount);
+        } else if(randomIndex >= (playerBoardState.current||[]).length && randomIndex < (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length ){
+            console.log('dealing damage to enemy minion');
+            const opponentIndex = randomIndex - (playerBoardState.current||[]).length;
+            dealDamageToOpponentMinionAt(opponentIndex, amount)
+        } else if(randomIndex === (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length + 1){
+            console.log('dealing damage to player face');
+            dealDamageToPlayerFace(amount);
+        } else if(randomIndex === (playerBoardState.current||[]).length + (opponentBoardState.current||[]).length + 2){
+            console.log('dealing damage to enemy face');
+            dealDamageToOpponentFace(amount);
+        }
+    }
 
     const cardPool: Card[] = [
         {
@@ -316,6 +341,8 @@ export const App = () => {
                 setPlayerTotalMana(0);
                 setPlayerFullMana(0);
                 setOpponentsMana(0);
+                setGainedUsableMana(0);
+                setGainedPermanentMana(0);
             }
         },
         {
@@ -468,6 +495,81 @@ export const App = () => {
                     )
                 }
             }
+        },
+        {
+            name: 'Innervate',
+            filename: 'innervate',
+            activation_function: ()=>{
+                const maxMana = playerHasGuff.current ? 20 : 10;
+                if((playerFullMana.current || 0 ) < maxMana){
+                    setPlayerFullMana((playerFullMana.current || 0) + 1);
+                    setGainedUsableMana((gainedUsableMana.current || 0) + 1)
+                }
+            }
+        },
+        {
+            name: 'Kodo Mount',
+            filename: 'kodo_mount',
+            activation_function: () => {
+                if((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length === 0) return;
+
+                const randomMinionIndex = Math.floor(Math.random() * ((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length));
+
+                if(randomMinionIndex < (playerBoardState.current||[]).length){
+                    updateFriendlyMinionAt(randomMinionIndex, {
+                        ...(playerBoardState.current||[])[randomMinionIndex],
+                        attack: (playerBoardState.current||[])[randomMinionIndex].attack + 4,
+                        health: (playerBoardState.current||[])[randomMinionIndex].health + 2,
+                        modifiers: [...(playerBoardState.current||[])[randomMinionIndex]?.modifiers || [], 'rush', 'kodo mount']
+                    })
+                    setFriendlyStatsDifferential( {
+                        attack: (friendlyStatsDifferential.current?.attack || 0) + 4,
+                        health: (friendlyStatsDifferential.current?.health || 0) + 2
+                    })
+                } else {
+                    const opponentIndex = randomMinionIndex - (playerBoardState.current||[]).length;
+                    updateOpponentsMinionAt(opponentIndex, {
+                        ...(opponentBoardState.current||[])[opponentIndex],
+                        attack: (opponentBoardState.current||[])[opponentIndex].attack + 4,
+                        health: (opponentBoardState.current||[])[opponentIndex].health + 2,
+                        modifiers: [...(opponentBoardState.current||[])[opponentIndex]?.modifiers || [], 'rush', 'kodo mount']
+
+                    });
+                    setEnemyStatsDifferential({
+                        attack: (enemyStatsDifferential.current?.attack || 0) + 4,
+                        health: (enemyStatsDifferential.current?.health || 0) + 2}
+                    )
+                }
+            }
+        },
+        {
+            name: 'Living Roots',
+            filename: 'living_roots',
+            activation_function: ()=>{
+                if(Math.random() > .5){
+                    console.log('dealing random damage');
+                    dealRandomDamage(2);
+                } else {
+                    const boardSize = (playerBoardState.current ||[]).length;
+                    if(boardSize >= 7) return;
+                    const statsDifferential = {attack: 0, health: 0};
+                    let minionsDifferential = 0;
+                    const saplingsToSummon: Minion[] = [];
+                    while(saplingsToSummon.length < 7 - boardSize && saplingsToSummon.length < 2){
+                        saplingsToSummon.push({attack: 1, health: 1});
+                        statsDifferential.attack += 1;
+                        statsDifferential.health += 1;
+                        minionsDifferential += 1;
+                    }
+                    setPlayerBoardState([...(playerBoardState.current||[]), ...saplingsToSummon]);
+                    setFriendlyMinionDifferential((friendlyMinionDifferential.current||0) + minionsDifferential);
+                    setFriendlyStatsDifferential( {
+                        attack: (friendlyStatsDifferential.current?.attack || 0) + statsDifferential.attack,
+                        health: (friendlyStatsDifferential.current?.health || 0) + statsDifferential.health
+                    });
+
+                }
+            }
         }
     ];
 
@@ -486,6 +588,89 @@ export const App = () => {
         ]);
     }
 
+    const removeFriendlyMinionAt = (index: number) => {
+        setPlayerBoardState([
+            ...(playerBoardState.current||[]).slice(0, index),
+            ...(playerBoardState.current||[]).slice(index + 1)
+        ]);
+    }
+    const removeOpponentsMinionAt = (index: number) => {
+        setOpponentBoardState([
+            ...(opponentBoardState.current||[]).slice(0, index),
+            ...(opponentBoardState.current||[]).slice(index + 1)
+        ]);
+    }
+
+    const dealDamageToFriendlyMinionAt = (index: number, amount: number)=> {
+        const minion = (playerBoardState.current||[])[index];
+        if(minion.health <= amount){
+            removeFriendlyMinionAt(index);
+            setFriendlyStatsDifferential({
+                attack: ((friendlyStatsDifferential.current||{}).attack ||0) - minion.attack,
+                health: ((friendlyStatsDifferential.current||{}).health ||0) - minion.health
+            });
+            setFriendlyMinionDifferential((friendlyMinionDifferential.current || 0) -1)
+        } else {
+            updateFriendlyMinionAt(index, {
+                ...(playerBoardState.current||[])[index],
+                health: (playerBoardState.current||[])[index].health - amount});
+            setFriendlyStatsDifferential({
+                ...(friendlyStatsDifferential.current||{}),
+                health: ((friendlyStatsDifferential.current||{}).health ||0) - amount
+            });
+        }
+    }
+    const dealDamageToOpponentMinionAt = (index: number, amount: number)=> {
+        const minion = (opponentBoardState.current||[])[index];
+        if(minion.health <= amount){
+            removeOpponentsMinionAt(index);
+            setEnemyStatsDifferential({
+                attack: ((enemyStatsDifferential.current||{}).attack ||0) - minion.attack,
+                health: ((enemyStatsDifferential.current||{}).health ||0) - minion.health
+            });
+            setEnemyMinionDifferential((enemyMinionDifferential.current || 0) -1)
+        } else {
+            updateOpponentsMinionAt(index, {
+                ...(opponentBoardState.current||[])[index],
+                health: (opponentBoardState.current||[])[index].health - amount});
+            setEnemyStatsDifferential({
+                ...(enemyStatsDifferential.current||{}),
+                health: ((enemyStatsDifferential.current||{}).health ||0) - amount
+            });
+        }
+    }
+
+    const dealDamageToPlayerFace = (amount: number)=>{
+        let damageToArmor;
+        const armor = playersArmor.current||0;
+        if(armor > amount)
+        {
+            damageToArmor = amount;
+        }
+        else {
+            damageToArmor = armor;
+        }
+        let damageToFace = amount - damageToArmor;
+        setPlayersArmor((playersArmor.current||0)-damageToArmor);
+        setPlayersLife((playersLife.current||0)-damageToFace);
+        setDamageToFriendlyHero((damageToFriendlyHero.current||0) + amount);
+    }
+    const dealDamageToOpponentFace = (amount: number)=>{
+        let damageToArmor;
+        const armor = opponentsArmor.current||0;
+        if(armor > amount)
+        {
+            damageToArmor = amount;
+        }
+        else {
+            damageToArmor = armor;
+        }
+        let damageToFace = amount - damageToArmor;
+        setOpponentsArmor((opponentsArmor.current||0)-damageToArmor);
+        setOpponentsLife((opponentsLife.current||0)-damageToFace);
+        setDamageToEnemyHero((damageToEnemyHero.current||0)+ amount)
+    }
+
     const convoke = () =>{
         let neededMana = 10;
         if(celestialAlignment.current){
@@ -497,6 +682,7 @@ export const App = () => {
             setIsNotEnoughManaPopupVisible(true);
             return;
         }
+        setConsecutiveClicks(consecutiveClicks=>consecutiveClicks+1);
         const selectedCards = [];
         for(let i = 0; i < 8; i++){
             selectedCards.push(cardPool[Math.floor(Math.random()*cardPool.length)])
@@ -538,6 +724,12 @@ export const App = () => {
         setEnemyMinionDifferential(0);
         setFriendlyStatsDifferential({});
         setEnemyStatsDifferential({});
+        setGainedUsableMana(0);
+        setGainedPermanentMana(0);
+        setBuffedMinionsInHand({});
+        setDamageToFriendlyHero(0);
+        setDamageToEnemyHero(0);
+        setConsecutiveClicks(0);
     }
 
     const generateBoard = (minStats: number, maxStats: number, minMinions: number, maxMinions: number): Minion[] => {
@@ -746,18 +938,21 @@ export const App = () => {
               <Div css={{display: 'flex', justifyContent: 'center'}}>
                   <h2>Stats</h2>
               </Div>
+              {consecutiveClicks > 1 && <Div>After {consecutiveClicks} consecutive "Convoke the Spirits": </Div>}
               <ul>
-                  {(buffedMinionsInHand.current||{}).attack != null || (buffedMinionsInHand.current||{}).health != null && <ListItem>Buffed all minions in hand by +{(buffedMinionsInHand.current||{}).attack || 0}/+{(buffedMinionsInHand.current||{}).health || 0}</ListItem>}
                   {(armorGain.current||0) > 0 && <ListItem><ShieldIcon fontSize="small"/> Gained +{(armorGain.current||0)} armor</ListItem>}
 
-                  {(damageToEnemyHero.current||0) > 0 && <ListItem>Dealt {(damageToEnemyHero.current||0)} to the enemy hero</ListItem>}
-                  {(damageToFriendlyHero.current||0) > 0 && <ListItem>Dealt {(damageToFriendlyHero.current||0)} to the your own hero</ListItem>}
+                  {(damageToEnemyHero.current || 0) > 0 && <ListItem><Span css={{color: 'green'}}>Dealt {(damageToEnemyHero.current||0)} damage to the enemy hero</Span></ListItem>}
+                  {(damageToFriendlyHero.current || 0) > 0 && <ListItem><Span css={{color: 'red'}}>Dealt {(damageToFriendlyHero.current||0)} damage to your own hero</Span></ListItem>}
 
                   {(cardsDrawn.current||0) > 0 && <ListItem><StyleIcon fontSize={'small'}/>Drew +{(cardsDrawn.current||0)} cards</ListItem>}
                   {(attackGain.current||0) > 0 && <ListItem><FitnessCenterIcon fontSize={'small'}/>Your hero gained +{(attackGain.current||0)} attack</ListItem>}
 
-                  {(friendlyMinionDifferential.current||0) > 0 && <ListItem>You gained {(friendlyMinionDifferential.current||0)} minion(s) {(addedFriendlyTaunts.current||0) > 0 && `(${addedFriendlyTaunts.current||0} taunt(s))`}</ListItem>}
-                  {(friendlyMinionDifferential.current||0) < 0 && <ListItem css={{color: 'red'}}>You lost {(friendlyMinionDifferential.current||0) * -1} minion(s)</ListItem>}
+                  {(gainedUsableMana.current || 0) > 0 && <ListItem><DiamondOutlinedIcon fontSize={'small'}/>Gained +{(gainedUsableMana.current||0)} mana usable this turn</ListItem>}
+                  {(gainedPermanentMana.current||0) > 0 && <ListItem><DiamondIcon fontSize={'small'}/>Gained +{(gainedPermanentMana.current||0)} permanent mana</ListItem>}
+
+                  {(friendlyMinionDifferential.current||0) > 0 && <ListItem>Gained {(friendlyMinionDifferential.current||0)} minion(s) {(addedFriendlyTaunts.current||0) > 0 && `(${addedFriendlyTaunts.current||0} taunt(s))`}</ListItem>}
+                  {(friendlyMinionDifferential.current||0) < 0 && <ListItem><Span css={{color: 'red'}}>You lost {(friendlyMinionDifferential.current||0) * -1} minion(s)</Span></ListItem>}
 
                   {((friendlyStatsDifferential.current||{}).attack != null || (friendlyStatsDifferential.current||{}).health != null)  &&
                     <ListItem>Your net stats change is <Span css={{ fontWeight: 'bold', color: ((friendlyStatsDifferential.current||{}).attack || 0) > 0 ? 'green':'red'}}>{((friendlyStatsDifferential.current||{}).attack || 0) >= 0 && '+'}{(friendlyStatsDifferential.current||{}).attack || 0}</Span>/
@@ -765,18 +960,21 @@ export const App = () => {
                     </ListItem>
                   }
 
-                  {(enemyMinionDifferential.current||0) < 0 && <ListItem>Your opponent lost {(enemyMinionDifferential.current||0) * -1} minion(s)</ListItem>}
+                  {(enemyMinionDifferential.current||0) < 0 && <ListItem><Span css={{color: 'green'}}>Your opponent lost {(enemyMinionDifferential.current||0) * -1} minion(s)</Span></ListItem>}
                   {(enemyMinionDifferential.current||0) > 0 && <ListItem>Your opponent gained {(enemyMinionDifferential.current||0)} minion(s)</ListItem>}
                   {((enemyStatsDifferential.current||{}).attack != null || (enemyStatsDifferential.current||{}).health != null) &&
                       <ListItem>Your opponent's net stats change is <Span css={{ fontWeight: 'bold', color: ((enemyStatsDifferential.current||{}).attack || 0) > 0 ? 'red':'green'}}>{((enemyStatsDifferential.current||{}).attack || 0) >= 0 && '+'}{(enemyStatsDifferential.current||{}).attack || 0 }</Span>/
                         <Span css={{ fontWeight: 'bold', color: ((enemyStatsDifferential.current||{}).health || 0) > 0 ? 'red':'green'}}>{((enemyStatsDifferential.current||{}).health || 0) >= 0 && '+'}{(enemyStatsDifferential.current||{}).health || 0}</Span>
                       </ListItem>
                   }
+
+                  {((buffedMinionsInHand.current||{}).attack != null || (buffedMinionsInHand.current||{}).health != null) && <ListItem>Buffed all minions in hand by +{(buffedMinionsInHand.current||{}).attack || 0}/+{(buffedMinionsInHand.current||{}).health || 0}</ListItem>}
+
                   {(addedEnemyTaunts.current||0) > 0 && <ListItem>Gave {(addedEnemyTaunts.current||0)} taunt(s) to the opponent</ListItem>}
                   {(addedEnemyTaunts.current||0) < 0 && <ListItem>Removed {(addedEnemyTaunts.current||0) * -1} taunt(s) from the opponent's board</ListItem>}
 
-                  {celestialAlignment.current && <ListItem>Celestial Alignment has been activated</ListItem>}
-                  {frostwolfKennels.current && <ListItem>Frostwolf Kennels is active</ListItem>}
+                  {celestialAlignment.current && <ListItem><AutoAwesomeIcon fontSize={'small'}/>Celestial Alignment has been activated</ListItem>}
+                  {frostwolfKennels.current && <ListItem><PetsIcon fontSize={'small'}/>Frostwolf Kennels is active</ListItem>}
               </ul>
           </Div>
       </Div>

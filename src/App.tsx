@@ -746,8 +746,10 @@ export const App = () => {
                 if(Math.random() >= .5) {
                     dealDamageToRandomMinion(3);
                 } else{
-                    dealDamageToRandomMinion(1);
-                    drawCards(1);
+                    if((playerBoardState.current||[]).length + (opponentBoardState.current||[]).length > 0){
+                        dealDamageToRandomMinion(1);
+                        drawCards(1);
+                    }
                 }
             }
         }
